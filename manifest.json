@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "Oracle Timecard Totals",
+  "version": "1.0",
+  "description": "Auto‑fills the lower‑right cell of your Oracle time card with the sum of the Totals column.",
+  "permissions": [
+    "activeTab"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "*://hcmq.fa.us2.oraclecloud.com/fscmUI/redwood/time/timecards/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
