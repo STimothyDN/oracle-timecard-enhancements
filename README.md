@@ -1,4 +1,4 @@
-# Oracle Timecard Enhancements v2.0
+# Oracle Timecard Enhancements
 
 A modular browser extension that enhances Oracle JET `<oj-data-grid>` timecards with configurable features. Users can toggle enhancements on/off and customize settings through an intuitive interface.
 
@@ -22,7 +22,10 @@ A modular browser extension that enhances Oracle JET `<oj-data-grid>` timecards 
 
 ## Installation
 
-### Chrome
+### Chrome and Chromium based browsers
+1. This extension is available for download as a Chrome extension on the Chrome Web Store here: `[INSET-LINK-HERE-WHEN-EXTENSION-PASSES-REVIEW]`
+
+### Chrome (side-load method)
 1. Clone this repository to your local machine
 2. Open Chrome → `chrome://extensions/`
 3. Enable **Developer mode** (toggle in top right)
