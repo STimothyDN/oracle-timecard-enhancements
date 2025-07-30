@@ -39,6 +39,12 @@ A modular browser extension that enhances Oracle JET `<oj-data-grid>` timecards 
 
 **Note**: Firefox temporary add-ons are removed on restart.
 
+### Microsoft Edge
+1. Clone this repository to your local machine
+2. Open Edge → Click the three-dot menu in the top-right corner → Extensions → Manage extensions
+3. Toggle **Developer mode** to On (lower-left corner of the Extensions page)
+4. Click **Load unpacked** and select the project folder (must contain the manifest.json file)
+
 ## Usage
 
 1. **Navigate** to your Oracle timecard page
