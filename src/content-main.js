@@ -6,6 +6,7 @@
   // Register all available enhancements
   manager.registerEnhancement(new TimecardTotalsEnhancement());
   manager.registerEnhancement(new WeekendShadingEnhancement());
+  manager.registerEnhancement(new DynamicRedLineEnhancement());
 
   // Initialize the manager
   manager.init().catch(error => {
@@ -32,6 +33,16 @@
           sendResponse({ success: true });
         } else {
           sendResponse({ success: false, error: 'Weekend shading enhancement not found' });
+        }
+        break;
+        
+      case 'updateRedLineColor':
+        const dynamicRedLine = manager.enhancements.get('dynamic-red-line');
+        if (dynamicRedLine && dynamicRedLine.setRedLineColor) {
+          dynamicRedLine.setRedLineColor(request.color);
+          sendResponse({ success: true });
+        } else {
+          sendResponse({ success: false, error: 'Dynamic red line enhancement not found' });
         }
         break;
         

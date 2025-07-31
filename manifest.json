@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Oracle Timecard Enhancements",
-  "version": "2.0",
+  "version": "2.1",
   "description": "Enhances Oracle timecards with modular, configurable features including totals calculation and weekend cell shading.",
   "permissions": [
     "activeTab",
@@ -26,6 +26,7 @@
         "src/enhancements/base.js",
         "src/enhancements/timecard-totals.js",
         "src/enhancements/weekend-shading.js",
+        "src/enhancements/dynamic-red-line.js",
         "src/manager.js",
         "src/content-main.js"
       ],
