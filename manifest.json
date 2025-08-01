@@ -27,6 +27,7 @@
         "src/enhancements/timecard-totals.js",
         "src/enhancements/weekend-shading.js",
         "src/enhancements/dynamic-red-line.js",
+        "src/enhancements/alternate-line-shading.js",
         "src/manager.js",
         "src/content-main.js"
       ],
