@@ -4,23 +4,23 @@ A modular browser extension that enhances Oracle JET `<oj-data-grid>` timecards 
 
 ## Features
 
-### 🧮 Timecard Totals
+### 🧮 Timecard Totals (Developed by Timothy Navarro)
 - Automatically calculates and displays total hours in the bottom-right corner
 - Parses "X hours" strings from row totals and sums them
 - Updates dynamically when the timecard changes
 
-### 🎨 Weekend Shading
+### 🎨 Weekend Shading (Developed by Joey Morris)
 - Applies subtle background shading to weekend columns (Saturday & Sunday)
 - Customizable shade color through options page
 - Helps visually distinguish weekends from weekdays
 
-### � Alternate Line Shading
+### � Alternate Line Shading (Developed by Tanya Reeves)
 - Applies subtle background shading to alternate rows for improved readability
 - Automatically coordinates with weekend shading (weekend columns take priority)
 - Customizable shade color through options page
 - Helps visually track data across rows in large timecards
 
-### �📍 Dynamic Red Line
+### �📍 Dynamic Red Line (Developed by Timothy Navarro)
 - Replaces static weekly red lines with a single dynamic red line
 - Red line appears before the current date column
 - Updates automatically based on your local system date
