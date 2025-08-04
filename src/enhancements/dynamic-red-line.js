@@ -35,7 +35,7 @@ class DynamicRedLineEnhancement extends Enhancement {
 
   /**
    * Get today's date in the format used by the timecard headers
-   * @returns {string} Today's date formatted like "Mon, Jan 27"
+   * @returns {string} Today's date formatted like "Mon, Jan 27" or "Sun, Aug 03"
    */
   getTodayDateString() {
     const today = new Date();
@@ -45,7 +45,7 @@ class DynamicRedLineEnhancement extends Enhancement {
     
     const dayName = dayNames[today.getDay()];
     const monthName = monthNames[today.getMonth()];
-    const date = today.getDate();
+    const date = today.getDate().toString().padStart(2, '0'); // Add leading zero for single digits
     
     return `${dayName},${monthName} ${date}`;
   }
