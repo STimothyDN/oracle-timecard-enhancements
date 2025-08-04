@@ -78,9 +78,17 @@ class DynamicRedLineEnhancement extends Enhancement {
     const todayLeftOffset = parseInt(todayColumn.style.left);
     if (isNaN(todayLeftOffset)) return null;
 
-    // Find all column headers and sort by their left position
+    // Find only date column headers (those that contain day names and dates)
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const headerCells = Array.from(document.querySelectorAll('.oj-datagrid-column-header-cell'))
-      .filter(cell => cell.style.left && !isNaN(parseInt(cell.style.left)))
+      .filter(cell => {
+        // Only include cells that have a left position and contain date information
+        if (!cell.style.left || isNaN(parseInt(cell.style.left))) return false;
+        
+        const cellText = cell.textContent.trim();
+        // Check if the cell contains a day name (indicating it's a date column)
+        return dayNames.some(day => cellText.includes(day));
+      })
       .sort((a, b) => parseInt(a.style.left) - parseInt(b.style.left));
 
     // Find the column immediately before today's column
