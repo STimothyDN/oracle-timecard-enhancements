@@ -10,7 +10,7 @@ async function loadEnhancementSettings() {
         const preferences = result.enhancementPreferences || {};
         const weekendColor = result.weekendShadeColor || 'rgb(251,249,248)';
         const redLineColor = result.redLineColor || 'rgb(214,45,32)'; // Default Oracle red color
-        const alternateLineColor = result.alternateLineShadeColor || 'rgb(251,249,248)';
+        const alternateLineColor = result.alternateShadeColor || 'rgb(251,249,248)';
 
         // Define enhancements with their options
         const enhancements = [
@@ -234,7 +234,7 @@ async function saveOptionValue(optionName, value) {
             color: rgbValue
             });
         });
-        }if (optionName === 'alternateShadeColor') {
+        } else if (optionName === 'alternateShadeColor') {
             // Convert hex to rgb format
             const rgbValue = hexToRgb(value);
             await chrome.storage.sync.set({ alternateShadeColor: rgbValue });
@@ -307,7 +307,7 @@ async function resetColorToDefault(optionName, colorInput) {
         });
         
         showSaveStatus('Color reset to default', 'success');
-        } if (optionName === 'alternateShadeColor') {
+        } else if (optionName === 'alternateShadeColor') {
             const defaultColor = 'rgb(251,249,248)';
             const defaultHex = rgbToHex(defaultColor);
             
@@ -315,7 +315,7 @@ async function resetColorToDefault(optionName, colorInput) {
             colorInput.value = defaultHex;
             
             // Save the default value
-            await chrome.storage.sync.set({ alternateLineShadeColor: defaultColor });
+            await chrome.storage.sync.set({ alternateShadeColor: defaultColor });
             
             // Notify active timecard tabs
             const tabs = await chrome.tabs.query({ 

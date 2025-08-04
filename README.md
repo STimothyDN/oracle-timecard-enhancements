@@ -14,7 +14,13 @@ A modular browser extension that enhances Oracle JET `<oj-data-grid>` timecards 
 - Customizable shade color through options page
 - Helps visually distinguish weekends from weekdays
 
-### 📍 Dynamic Red Line
+### � Alternate Line Shading
+- Applies subtle background shading to alternate rows for improved readability
+- Automatically coordinates with weekend shading (weekend columns take priority)
+- Customizable shade color through options page
+- Helps visually track data across rows in large timecards
+
+### �📍 Dynamic Red Line
 - Replaces static weekly red lines with a single dynamic red line
 - Red line appears before the current date column
 - Updates automatically based on your local system date
@@ -102,6 +108,10 @@ manager.registerEnhancement(new MyNewEnhancement());
 ### Weekend Shading
 - **Shade Color**: Customize the background color for weekend columns
 - **Default**: Light gray (`rgb(251,249,248)`)
+
+### Alternate Line Shading
+- **Shade Color**: Customize the background color for alternate rows
+- **Default**: Light gray (`rgb(245,254,255)`)
 
 ### Dynamic Red Line
 - **Red Line Color**: Customize the color of the dynamic red line

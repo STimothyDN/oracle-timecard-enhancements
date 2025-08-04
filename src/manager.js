@@ -75,11 +75,43 @@ class EnhancementManager {
     await enhancement.setEnabled(enabled);
     await this.savePreferences();
     
+    // Coordinate between related enhancements
+    if (name === 'weekend-shading' || name === 'alternate-line-shading') {
+      await this.coordinateShadingEnhancements(name, enabled);
+    }
+    
     // Force an update if enabling
     if (enabled) {
         setTimeout(() => enhancement.update(), 100);
     }
-    }
+  }
+
+  /**
+   * Coordinate between shading enhancements to prevent conflicts
+   * @param {string} changedEnhancement - The enhancement that was toggled
+   * @param {boolean} enabled - Whether it was enabled or disabled
+   */
+  async coordinateShadingEnhancements(changedEnhancement, enabled) {
+    const weekendShading = this.enhancements.get('weekend-shading');
+    const alternateShading = this.enhancements.get('alternate-line-shading');
+    
+    if (!weekendShading || !alternateShading) return;
+    
+    // Small delay to ensure DOM is in correct state
+    setTimeout(async () => {
+      // If weekend shading was changed, update alternate shading
+      if (changedEnhancement === 'weekend-shading' && alternateShading.enabled && alternateShading.forceUpdate) {
+        await alternateShading.forceUpdate();
+      }
+      
+      // If alternate shading was changed and weekend is enabled, update both
+      if (changedEnhancement === 'alternate-line-shading' && weekendShading.enabled) {
+        if (alternateShading.enabled && alternateShading.forceUpdate) {
+          await alternateShading.forceUpdate();
+        }
+      }
+    }, 150);
+  }
 
   /**
    * Get all enhancements with their current state
