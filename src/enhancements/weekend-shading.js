@@ -21,10 +21,36 @@ class WeekendShadingEnhancement extends Enhancement {
   async onCleanup() {
     // Remove weekend shading
     this.removeWeekendShading();
+    
+    // Notify alternate shading to update
+    this.notifyAlternateShading();
   }
 
   async onUpdate() {
+    this.removeWeekendShading();
     this.shadeWeekends();
+  }
+
+  /**
+   * Force update - called when other enhancements change state
+   */
+  async forceUpdate() {
+    if (this.enabled && this.initialized) {
+      this.removeWeekendShading();
+      this.shadeWeekends();
+    }
+  }
+
+  /**
+   * Notify alternate shading enhancement to update
+   */
+  notifyAlternateShading() {
+    if (typeof window !== 'undefined' && window.enhancementManager) {
+      const alternateShading = window.enhancementManager.enhancements.get('alternate-line-shading');
+      if (alternateShading && alternateShading.enabled && alternateShading.forceUpdate) {
+        setTimeout(() => alternateShading.forceUpdate(), 50);
+      }
+    }
   }
 
   // Find the left offsets of weekend columns
@@ -47,14 +73,17 @@ class WeekendShadingEnhancement extends Enhancement {
     
     gridCells.forEach((cell) => {
       if (offsets.includes(cell.style.left)) {
-        // Store original color if not already stored
-        if (!this.originalColors.has(cell)) {
+        // Store original color if not already stored by any enhancement
+        if (!this.originalColors.has(cell) && !cell.dataset.weekendShaded && !cell.dataset.alternateRowsShaded) {
           this.originalColors.set(cell, cell.style.backgroundColor || '');
         }
         cell.style.backgroundColor = this.shadeColor;
         cell.dataset.weekendShaded = 'true';
       }
     });
+    
+    // Notify alternate shading to update after weekend shading is applied
+    this.notifyAlternateShading();
   }
 
   removeWeekendShading() {
@@ -63,15 +92,19 @@ class WeekendShadingEnhancement extends Enhancement {
         // Restore original color
         const originalColor = this.originalColors.get(cell);
         if (originalColor !== undefined) {
-        cell.style.backgroundColor = originalColor;
+          if (originalColor === '') {
+            cell.style.removeProperty('background-color');
+          } else {
+            cell.style.backgroundColor = originalColor;
+          }
         } else {
-        // If no original color stored, remove the style
-        cell.style.removeProperty('background-color');
+          // If no original color stored, remove the style
+          cell.style.removeProperty('background-color');
         }
         cell.removeAttribute('data-weekend-shaded');
     });
     this.originalColors.clear();
-    }
+  }
 
   /**
    * Update shade color
@@ -80,6 +113,7 @@ class WeekendShadingEnhancement extends Enhancement {
   setShadeColor(color) {
     this.shadeColor = color;
     if (this.enabled && this.initialized) {
+      this.removeWeekendShading();
       this.shadeWeekends();
     }
   }

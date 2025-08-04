@@ -6,9 +6,11 @@ document.addEventListener('DOMContentLoaded', () => {
 async function loadEnhancementSettings() {
     try {
         // Get saved preferences
-        const result = await chrome.storage.sync.get(['enhancementPreferences', 'weekendShadeColor']);
+        const result = await chrome.storage.sync.get(['enhancementPreferences', 'weekendShadeColor', 'redLineColor', 'alternateShadeColor']);
         const preferences = result.enhancementPreferences || {};
         const weekendColor = result.weekendShadeColor || 'rgb(251,249,248)';
+        const redLineColor = result.redLineColor || 'rgb(214,45,32)'; // Default Oracle red color
+        const alternateLineColor = result.alternateShadeColor || 'rgb(251,249,248)';
 
         // Define enhancements with their options
         const enhancements = [
@@ -31,6 +33,36 @@ async function loadEnhancementSettings() {
                 type: 'color',
                 value: weekendColor,
                 description: 'Choose the background color for weekend columns'
+            }
+            ]
+        },
+        {
+            name: 'dynamic-red-line',
+            title: 'Dynamic Red Line',
+            description: 'Shows a single red line before the current date column instead of the default weekly red lines.',
+            enabled: preferences['dynamic-red-line'] !== false,
+            options: [
+            {
+                name: 'redLineColor',
+                label: 'Red Line Color',
+                type: 'color',
+                value: redLineColor,
+                description: 'Choose the color for the dynamic red line'
+            }
+            ]
+        },
+        {
+            name: 'alternate-line-shading',
+            title: 'Alternate Line Shading',
+            description: 'Applies a subtle background color to alternate rows for better visual distinction.',
+            enabled: preferences['alternate-line-shading'] !== false,
+            options: [
+            {
+                name: 'alternateShadeColor',
+                label: 'Alternate Line Shade Color',
+                type: 'color',
+                value: alternateLineColor,
+                description: 'Choose the background color for alternate columns'
             }
             ]
         }
@@ -186,7 +218,39 @@ async function saveOptionValue(optionName, value) {
             color: rgbValue
             });
         });
-        }
+        } else if (optionName === 'redLineColor') {
+        // Convert hex to rgb format
+        const rgbValue = hexToRgb(value);
+        await chrome.storage.sync.set({ redLineColor: rgbValue });
+        
+        // Notify active timecard tabs
+        const tabs = await chrome.tabs.query({ 
+            url: ['*://hcmq.fa.us2.oraclecloud.com/fscmUI/redwood/time/timecards/*']
+        });
+        
+        tabs.forEach(tab => {
+            chrome.tabs.sendMessage(tab.id, {
+            action: 'updateRedLineColor',
+            color: rgbValue
+            });
+        });
+        } else if (optionName === 'alternateShadeColor') {
+            // Convert hex to rgb format
+            const rgbValue = hexToRgb(value);
+            await chrome.storage.sync.set({ alternateShadeColor: rgbValue });
+            
+            // Notify active timecard tabs
+            const tabs = await chrome.tabs.query({ 
+                url: ['*://hcmq.fa.us2.oraclecloud.com/fscmUI/redwood/time/timecards/*']
+            });
+            
+            tabs.forEach(tab => {
+                chrome.tabs.sendMessage(tab.id, {
+                action: 'updateAlternateRowColor',
+                color: rgbValue
+                });
+            });
+            }
         
         showSaveStatus('Settings saved successfully', 'success');
     } catch (error) {
@@ -220,6 +284,52 @@ async function resetColorToDefault(optionName, colorInput) {
         });
         
         showSaveStatus('Color reset to default', 'success');
+        } else if (optionName === 'redLineColor') {
+        const defaultColor = 'rgb(214,45,32)'; // Default Oracle red
+        const defaultHex = rgbToHex(defaultColor);
+        
+        // Update the color input value
+        colorInput.value = defaultHex;
+        
+        // Save the default value
+        await chrome.storage.sync.set({ redLineColor: defaultColor });
+        
+        // Notify active timecard tabs
+        const tabs = await chrome.tabs.query({ 
+            url: ['*://hcmq.fa.us2.oraclecloud.com/fscmUI/redwood/time/timecards/*']
+        });
+        
+        tabs.forEach(tab => {
+            chrome.tabs.sendMessage(tab.id, {
+            action: 'updateRedLineColor',
+            color: defaultColor
+            });
+        });
+        
+        showSaveStatus('Color reset to default', 'success');
+        } else if (optionName === 'alternateShadeColor') {
+            const defaultColor = 'rgb(251,249,248)';
+            const defaultHex = rgbToHex(defaultColor);
+            
+            // Update the color input value
+            colorInput.value = defaultHex;
+            
+            // Save the default value
+            await chrome.storage.sync.set({ alternateShadeColor: defaultColor });
+            
+            // Notify active timecard tabs
+            const tabs = await chrome.tabs.query({ 
+                url: ['*://hcmq.fa.us2.oraclecloud.com/fscmUI/redwood/time/timecards/*']
+            });
+            
+            tabs.forEach(tab => {
+                chrome.tabs.sendMessage(tab.id, {
+                action: 'updateAlternateRowColor',
+                color: defaultColor
+                });
+            });
+            
+            showSaveStatus('Color reset to default', 'success');
         }
     } catch (error) {
         console.error('Error resetting color:', error);

@@ -4,15 +4,27 @@ A modular browser extension that enhances Oracle JET `<oj-data-grid>` timecards 
 
 ## Features
 
-### 🧮 Timecard Totals
+### 🧮 Timecard Totals (Developed by Timothy Navarro)
 - Automatically calculates and displays total hours in the bottom-right corner
 - Parses "X hours" strings from row totals and sums them
 - Updates dynamically when the timecard changes
 
-### 🎨 Weekend Shading
+### 🎨 Weekend Shading (Developed by Joey Morris)
 - Applies subtle background shading to weekend columns (Saturday & Sunday)
 - Customizable shade color through options page
 - Helps visually distinguish weekends from weekdays
+
+### � Alternate Line Shading (Developed by Tanya Reeve)
+- Applies subtle background shading to alternate rows for improved readability
+- Automatically coordinates with weekend shading (weekend columns take priority)
+- Customizable shade color through options page
+- Helps visually track data across rows in large timecards
+
+### �📍 Dynamic Red Line (Developed by Timothy Navarro)
+- Replaces static weekly red lines with a single dynamic red line
+- Red line appears before the current date column
+- Updates automatically based on your local system date
+- Provides better visual context for today's timecard entry
 
 ### ⚙️ User Configuration
 - **Popup Interface**: Quick toggle switches for each enhancement
@@ -41,6 +53,12 @@ A modular browser extension that enhances Oracle JET `<oj-data-grid>` timecards 
 4. Click **Load Temporary Add-on** and select `manifest.json`
 
 **Note**: Firefox temporary add-ons are removed on restart.
+
+### Microsoft Edge
+1. Clone this repository to your local machine
+2. Open Edge → Click the three-dot menu in the top-right corner → Extensions → Manage extensions
+3. Toggle **Developer mode** to On (lower-left corner of the Extensions page)
+4. Click **Load unpacked** and select the project folder (must contain the manifest.json file)
 
 ## Usage
 
@@ -93,4 +111,12 @@ manager.registerEnhancement(new MyNewEnhancement());
 ### Weekend Shading
 - **Shade Color**: Customize the background color for weekend columns
 - **Default**: Light gray (`rgb(251,249,248)`)
+
+### Alternate Line Shading
+- **Shade Color**: Customize the background color for alternate rows
+- **Default**: Light gray (`rgb(245,254,255)`)
+
+### Dynamic Red Line
+- **Red Line Color**: Customize the color of the dynamic red line
+- **Default**: Oracle red (`rgb(214,45,32)`)
 
