@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Oracle Timecard Enhancements",
-  "version": "2.6",
-  "description": "Enhances Oracle timecards with modular, configurable features including totals calculation, weekend cell shading, and alternate line shading.",
+  "version": "2.5",
+  "description": "Enhances Oracle timecards with modular, configurable features.",
   "permissions": [
     "activeTab",
     "storage"
