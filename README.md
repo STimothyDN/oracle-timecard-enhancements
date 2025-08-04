@@ -14,7 +14,7 @@ A modular browser extension that enhances Oracle JET `<oj-data-grid>` timecards 
 - Customizable shade color through options page
 - Helps visually distinguish weekends from weekdays
 
-### � Alternate Line Shading (Developed by Tanya Reeves)
+### � Alternate Line Shading (Developed by Tanya Reeve)
 - Applies subtle background shading to alternate rows for improved readability
 - Automatically coordinates with weekend shading (weekend columns take priority)
 - Customizable shade color through options page
