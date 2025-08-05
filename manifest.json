@@ -33,5 +33,10 @@
       ],
       "run_at": "document_idle"
     }
-  ]
+  ],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "oracle-timecard-enhancements@notoracle.com"
+    }
+  }
 }

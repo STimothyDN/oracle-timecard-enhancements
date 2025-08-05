@@ -1,0 +1,14 @@
+{
+  "name": {
+    "en-US": "Oracle Timecard Enhancements"
+  },
+  "summary": {
+    "en-US": "Enhances Oracle JET timecards with configurable features like grand totals and weekend shading."
+  },
+  "categories": [
+    "other"
+  ],
+  "version": {
+    "license": "MPL-2.0"
+  }
+}

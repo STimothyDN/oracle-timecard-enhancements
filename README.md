@@ -37,13 +37,16 @@ A modular browser extension that enhances Oracle JET `<oj-data-grid>` timecards 
 ### Chrome and Chromium based browsers
 1. This extension is available for download as a Chrome extension via this link on the [Chrome Web Store](https://chromewebstore.google.com/detail/oracle-timecard-enhanceme/ihljhabfbpnoifdhmikabpcajbmpifbb?authuser=0&hl=en)
 
+### Firefox
+1. This extension is available for download as a Firefox extension via this link on the [Firefox Add-ons Browser](https://addons.mozilla.org/en-US/firefox/addon/oracle-timecard-enhancements/)
+
 ### Chrome (side-load method)
 1. Clone this repository to your local machine
 2. Open Chrome → `chrome://extensions/`
 3. Enable **Developer mode** (toggle in top right)
 4. Click **Load unpacked** and select the project folder
 
-### Firefox
+### Firefox (temporary installation)
 1. Clone this repository to your local machine
 2. Open Firefox → `about:debugging`
 3. Click **This Firefox** in the left sidebar
