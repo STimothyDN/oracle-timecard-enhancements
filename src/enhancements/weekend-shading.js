@@ -14,6 +14,9 @@ class WeekendShadingEnhancement extends Enhancement {
   }
 
   async onInit() {
+    // Load saved color preference
+    await this.loadColorPreference();
+    
     // Initial shading
     this.shadeWeekends();
   }
@@ -116,5 +119,19 @@ class WeekendShadingEnhancement extends Enhancement {
       this.removeWeekendShading();
       this.shadeWeekends();
     }
+  }
+
+  /**
+   * Load saved color preference and apply it
+   */
+  async loadColorPreference() {
+    return new Promise((resolve) => {
+      chrome.storage.sync.get(['weekendShadeColor'], (result) => {
+        if (result.weekendShadeColor) {
+          this.shadeColor = result.weekendShadeColor;
+        }
+        resolve();
+      });
+    });
   }
 }
