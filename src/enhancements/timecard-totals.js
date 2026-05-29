@@ -30,8 +30,9 @@ class TimecardTotalsEnhancement extends Enhancement {
 
   // Parse "4.5 hours" or "1 hour" into 4.5 or 1.0
   parseHours(str) {
-    const m = (str || "").match(/([\d.]+)/);
-    return m ? parseFloat(m[1]) : 0;
+    const match = String(str || '').match(/-?\d+(?:\.\d+)?/);
+    const value = match ? Number.parseFloat(match[0]) : 0;
+    return Number.isFinite(value) ? value : 0;
   }
 
   updateCornerTotal() {

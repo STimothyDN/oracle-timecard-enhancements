@@ -4,30 +4,37 @@ A modular browser extension that enhances Oracle JET `<oj-data-grid>` timecards 
 
 ## Features
 
-### 🧮 Timecard Totals (Developed by Timothy Navarro)
+### Timecard Totals (Developed by Timothy Navarro)
 - Automatically calculates and displays total hours in the bottom-right corner
 - Parses "X hours" strings from row totals and sums them
 - Updates dynamically when the timecard changes
 
-### 🎨 Weekend Shading (Developed by Joey Morris)
+### Weekend Shading (Developed by Joey Morris)
 - Applies subtle background shading to weekend columns (Saturday & Sunday)
 - Customizable shade color through options page
 - Helps visually distinguish weekends from weekdays
 
-### � Alternate Line Shading (Developed by Tanya Reeve)
+### Alternate Line Shading (Developed by Tanya Reeve)
 - Applies subtle background shading to alternate rows for improved readability
 - Automatically coordinates with weekend shading (weekend columns take priority)
 - Customizable shade color through options page
 - Helps visually track data across rows in large timecards
 
-### �📍 Dynamic Red Line (Developed by Timothy Navarro)
+### Dynamic Red Line (Developed by Timothy Navarro)
 - Replaces static weekly red lines with a single dynamic red line
 - Red line appears before the current date column
 - Updates automatically based on your local system date
 - Provides better visual context for today's timecard entry
 
-### ⚙️ User Configuration
+### Previous Timecard Summary
+- Adds a popup action to compare the previous pay period against the current pay period
+- Groups hours by Project and Task in a modal table
+- Shows Previous, Current, and Combined totals
+- Includes a Last 12 Months tab that lazily fetches historical pay periods and aggregates hours by month
+
+### User Configuration
 - **Popup Interface**: Quick toggle switches for each enhancement
+- **Previous Timecard Action**: Opens the pay period comparison modal from the popup
 - **Options Page**: Advanced settings and customization
 - **Persistent Settings**: User preferences saved and synchronized
 - **Modular Design**: Easy to add new enhancements
@@ -64,8 +71,14 @@ A modular browser extension that enhances Oracle JET `<oj-data-grid>` timecards 
 
 1. **Navigate** to your Oracle timecard page
 2. **Click the extension icon** to access quick toggles
-3. **Right-click the icon** → "Options" for advanced settings
-4. **Configure** which enhancements you want enabled
+3. **Click "Show Previous Timecard"** to open the pay period comparison modal
+4. **Use "Last 12 Months"** in the modal to view monthly Project/Task totals
+5. **Right-click the icon** → "Options" for advanced settings
+6. **Configure** which enhancements you want enabled
+
+## Development
+
+This extension is plain JavaScript, HTML, and CSS with no build step. After making changes, reload the unpacked extension from your browser's extensions page and refresh the Oracle timecard tab.
 
 ## Adding New Enhancements
 
@@ -120,3 +133,7 @@ manager.registerEnhancement(new MyNewEnhancement());
 - **Red Line Color**: Customize the color of the dynamic red line
 - **Default**: Oracle red (`rgb(214,45,32)`)
 
+### Previous Timecard Summary
+- Uses Oracle timecard API requests already available on the page
+- Fetches previous-period and historical data in the page context so Oracle authentication is preserved
+- Historical data is loaded only when the Last 12 Months tab is opened

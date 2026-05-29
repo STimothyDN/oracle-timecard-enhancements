@@ -1,6 +1,6 @@
 /**
  * Alternate Shading Enhancement
- * Applies subtle background shading to alternate columns
+ * Applies subtle background shading to alternate rows
  */
 class AlternateLineShadingEnhancement extends Enhancement {
   constructor() {
@@ -101,11 +101,12 @@ class AlternateLineShadingEnhancement extends Enhancement {
     gridCells.forEach(processCell);
     
     /* get frozen Cells Length */
-    var frozenCells = document.querySelectorAll(".oj-datagrid-cell.oj-form-control-inherit.oj-datagrid-cell-frozen.oj-form-control-inherit.oj-fa-time-hcm-dg-header-cell-padding.oj-typography-body-sm.oj-fa-time-hcm-dg-row-height");
-    var shade = true;
-    var start = 0;
+    const frozenCells = document.querySelectorAll(".oj-datagrid-cell.oj-form-control-inherit.oj-datagrid-cell-frozen.oj-form-control-inherit.oj-fa-time-hcm-dg-header-cell-padding.oj-typography-body-sm.oj-fa-time-hcm-dg-row-height");
+    let shade = true;
+    let start = 0;
+    const safeFrozenCellsLength = Math.max(frozenCellsLength, 1);
     frozenCells.forEach((cell) => {
-        if(start % frozenCellsLength === 0){
+        if(start % safeFrozenCellsLength === 0){
             shade = !shade;
         }
         start++;
@@ -115,11 +116,12 @@ class AlternateLineShadingEnhancement extends Enhancement {
     });
     
     /* get grid cells length */
-    var timeCells = document.querySelectorAll(".oj-datagrid-databody .oj-datagrid-cell");
-    var shade = true;
-    var start = 0;
+    const timeCells = document.querySelectorAll(".oj-datagrid-databody .oj-datagrid-cell");
+    shade = true;
+    start = 0;
+    const safeTimeCellsLength = Math.max(timeCellsLength, 1);
     timeCells.forEach((cell) => {
-        if(start % timeCellsLength === 0){
+        if(start % safeTimeCellsLength === 0){
             shade = !shade;
         }
         start++;

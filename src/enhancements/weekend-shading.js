@@ -58,11 +58,12 @@ class WeekendShadingEnhancement extends Enhancement {
 
   // Find the left offsets of weekend columns
   findWeekendOffsets() {
-    const offsets = [];
+    const offsets = new Set();
     const headerCells = document.querySelectorAll('.oj-datagrid-column-header-cell');
     headerCells.forEach((cell) => {
-      if (cell.textContent.includes('Sat,') || cell.textContent.includes('Sun,')) {
-        offsets.push(cell.style.left);
+      const left = cell.style.left;
+      if (left && (cell.textContent.includes('Sat,') || cell.textContent.includes('Sun,'))) {
+        offsets.add(left);
       }
     });
     return offsets;
@@ -75,7 +76,7 @@ class WeekendShadingEnhancement extends Enhancement {
     );
     
     gridCells.forEach((cell) => {
-      if (offsets.includes(cell.style.left)) {
+      if (offsets.has(cell.style.left)) {
         // Store original color if not already stored by any enhancement
         if (!this.originalColors.has(cell) && !cell.dataset.weekendShaded && !cell.dataset.alternateRowsShaded) {
           this.originalColors.set(cell, cell.style.backgroundColor || '');

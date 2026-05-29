@@ -75,25 +75,25 @@ class DynamicRedLineEnhancement extends Enhancement {
     const todayColumn = this.findTodayColumn();
     if (!todayColumn) return null;
 
-    const todayLeftOffset = parseInt(todayColumn.style.left);
-    if (isNaN(todayLeftOffset)) return null;
+    const todayLeftOffset = Number.parseInt(todayColumn.style.left, 10);
+    if (Number.isNaN(todayLeftOffset)) return null;
 
     // Find only date column headers (those that contain day names and dates)
     const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const headerCells = Array.from(document.querySelectorAll('.oj-datagrid-column-header-cell'))
       .filter(cell => {
         // Only include cells that have a left position and contain date information
-        if (!cell.style.left || isNaN(parseInt(cell.style.left))) return false;
+        if (!cell.style.left || Number.isNaN(Number.parseInt(cell.style.left, 10))) return false;
         
         const cellText = cell.textContent.trim();
         // Check if the cell contains a day name (indicating it's a date column)
         return dayNames.some(day => cellText.includes(day));
       })
-      .sort((a, b) => parseInt(a.style.left) - parseInt(b.style.left));
+      .sort((a, b) => Number.parseInt(a.style.left, 10) - Number.parseInt(b.style.left, 10));
 
     // Find the column immediately before today's column
     for (let i = 0; i < headerCells.length; i++) {
-      if (parseInt(headerCells[i].style.left) === todayLeftOffset && i > 0) {
+      if (Number.parseInt(headerCells[i].style.left, 10) === todayLeftOffset && i > 0) {
         return headerCells[i - 1];
       }
     }
@@ -107,11 +107,10 @@ class DynamicRedLineEnhancement extends Enhancement {
    * @returns {NodeList} All cells at that column position
    */
   getCellsAtColumn(leftOffset) {
-    return document.querySelectorAll(
-      `.oj-datagrid-cell[style*="left: ${leftOffset}"], ` +
-      `.oj-datagrid-column-header-cell[style*="left: ${leftOffset}"], ` +
-      `.oj-datagrid-column-end-header-cell[style*="left: ${leftOffset}"]`
+    const cells = document.querySelectorAll(
+      '.oj-datagrid-cell,.oj-datagrid-column-header-cell,.oj-datagrid-column-end-header-cell'
     );
+    return Array.from(cells).filter(cell => cell.style.left === leftOffset);
   }
 
   /**
@@ -120,8 +119,7 @@ class DynamicRedLineEnhancement extends Enhancement {
   removeExistingRedLines() {
     const cellsWithWeekBorder = document.querySelectorAll('.oj-fa-time-hcm-dg-weekstart-border');
     cellsWithWeekBorder.forEach(cell => {
-      // Only process cells that we haven't already modified
-      if (!cell.dataset.dynamicRedLineActive && !cell.dataset.dynamicRedLineRemoved) {
+      if (!cell.dataset.dynamicRedLineActive) {
         cell.classList.remove('oj-fa-time-hcm-dg-weekstart-border');
         this.processedCells.add(cell);
         cell.dataset.dynamicRedLineRemoved = 'true';
@@ -143,13 +141,11 @@ class DynamicRedLineEnhancement extends Enhancement {
       // Find the column before today
       const columnBeforeToday = this.findColumnBeforeToday();
       if (!columnBeforeToday) {
-        console.log('Dynamic Red Line: Column before today not found');
         return;
       }
       
       const columnLeftOffset = columnBeforeToday.style.left;
       if (!columnLeftOffset) {
-        console.log('Dynamic Red Line: Could not determine column position');
         return;
       }
       
@@ -160,8 +156,6 @@ class DynamicRedLineEnhancement extends Enhancement {
         this.processedCells.add(cell);
         cell.dataset.dynamicRedLineActive = 'true';
       });
-      
-      console.log(`Dynamic Red Line: Applied red line before ${this.getTodayDateString()}`);
       
     } catch (error) {
       console.error('Dynamic Red Line error:', error);

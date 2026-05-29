@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
         
         // Check if we're on a timecard page
-        if (!tab.url.includes('oraclecloud.com') || !tab.url.includes('timecards')) {
+        if (!tab?.id || !tab.url || !tab.url.includes('oraclecloud.com') || !tab.url.includes('timecards')) {
         loadingEl.textContent = 'Navigate to your Oracle timecard to use this extension.';
         return;
         }
@@ -137,6 +137,26 @@ async function fetchPreviousTimecardFromPage(tabId) {
         world: 'MAIN',
         func: async () => {
             const headers = { accept: 'application/json', 'accept-language': 'en' };
+            const oneDayBefore = (dateString) => {
+                const [year, month, day] = dateString.split('-').map(Number);
+                const date = new Date(year, month - 1, day);
+                if (!Number.isFinite(date.getTime())) return null;
+                date.setDate(date.getDate() - 1);
+                const yyyy = date.getFullYear();
+                const mm = String(date.getMonth() + 1).padStart(2, '0');
+                const dd = String(date.getDate()).padStart(2, '0');
+                return `${yyyy}-${mm}-${dd}T00:00:00`;
+            };
+            const findLastTimecardEntry = () => {
+                const entries = performance.getEntriesByType('resource');
+                for (let i = entries.length - 1; i >= 0; i--) {
+                    const entry = entries[i];
+                    if (entry.name.includes('/timeCardEntryDetails') && !window.__ote_fetchedUrls.has(entry.name)) {
+                        return entry;
+                    }
+                }
+                return null;
+            };
 
             // Track URLs fetched by this extension so findLast doesn't pick them up
             // on subsequent clicks and keep going further back each time.
@@ -144,8 +164,7 @@ async function fetchPreviousTimecardFromPage(tabId) {
 
             // Find any timeCardEntryDetails request Oracle already made for this page,
             // excluding URLs our extension has fetched.
-            const entry = performance.getEntriesByType('resource')
-                .findLast(e => e.name.includes('/timeCardEntryDetails') && !window.__ote_fetchedUrls.has(e.name));
+            const entry = findLastTimecardEntry();
             if (!entry) {
                 return { error: 'API URL not found. Please reload the timecard page and try again.' };
             }
@@ -168,9 +187,8 @@ async function fetchPreviousTimecardFromPage(tabId) {
                 if (!startDate) {
                     return { error: 'Could not read period start date from current timecard.' };
                 }
-                const d = new Date(startDate);
-                d.setDate(d.getDate() - 1);
-                const newDate = d.toISOString().slice(0, 10) + 'T00:00:00';
+                const newDate = oneDayBefore(startDate);
+                if (!newDate) return { error: 'Could not parse current period start date.' };
                 currentUrl.searchParams.set('finder', finder.replace(/AsOfDate=[^,&]+/, `AsOfDate=${newDate}`));
                 prevUrl = currentUrl.toString();
             } else {
@@ -185,9 +203,8 @@ async function fetchPreviousTimecardFromPage(tabId) {
                 }
 
                 // 1 day before the period start lands safely in the prior period
-                const d = new Date(startDate);
-                d.setDate(d.getDate() - 1);
-                const prevDate = d.toISOString().slice(0, 10) + 'T00:00:00';
+                const prevDate = oneDayBefore(startDate);
+                if (!prevDate) return { error: 'Could not parse current period start date.' };
 
                 // Build a findByPersonIdAndDate URL using the same API base path
                 const base = new URL(entry.name);
@@ -231,8 +248,14 @@ async function injectFetch12MonthsHelper(tabId, currentData) {
         target: { tabId },
         world: 'MAIN',
         func: () => {
-            const entry = performance.getEntriesByType('resource')
-                .findLast(e => e.name.includes('/timeCardEntryDetails'));
+            const entries = performance.getEntriesByType('resource');
+            let entry = null;
+            for (let i = entries.length - 1; i >= 0; i--) {
+                if (entries[i].name.includes('/timeCardEntryDetails')) {
+                    entry = entries[i];
+                    break;
+                }
+            }
             if (!entry) return null;
             const u = new URL(entry.name);
             return u.origin + u.pathname.split('/timeCardEntryDetails')[0] + '/timeCardEntryDetails';
@@ -250,6 +273,16 @@ async function injectFetch12MonthsHelper(tabId, currentData) {
 
             const TOTAL = 24;
             const headers = { accept: 'application/json', 'accept-language': 'en' };
+            function oneDayBefore(dateString) {
+                const [year, month, day] = dateString.split('-').map(Number);
+                const date = new Date(year, month - 1, day);
+                if (!Number.isFinite(date.getTime())) return null;
+                date.setDate(date.getDate() - 1);
+                const yyyy = date.getFullYear();
+                const mm = String(date.getMonth() + 1).padStart(2, '0');
+                const dd = String(date.getDate()).padStart(2, '0');
+                return `${yyyy}-${mm}-${dd}T00:00:00`;
+            }
 
             function buildPeriodUrl(personId, asOfDate) {
                 const base = new URL(baseUrl);
@@ -268,7 +301,7 @@ async function injectFetch12MonthsHelper(tabId, currentData) {
             }
 
             window.addEventListener('message', async (event) => {
-                if (event.source !== window || event.data?.type !== 'ote-fetch-12m') return;
+                if (event.source !== window || event.origin !== window.location.origin || event.data?.type !== 'ote-fetch-12m') return;
 
                 if (!event.data.startDate || !event.data.personId) {
                     window.postMessage({ type: 'ote-12m-error', periods: [], message: 'Missing startDate or personId in message', token: event.data.token || null }, window.location.origin);
@@ -281,9 +314,8 @@ async function injectFetch12MonthsHelper(tabId, currentData) {
 
                 try {
                     for (let i = 0; i < TOTAL; i++) {
-                        const d = new Date(currentStart);
-                        d.setDate(d.getDate() - 1);
-                        const asOfDate = d.toISOString().slice(0, 10) + 'T00:00:00';
+                        const asOfDate = oneDayBefore(currentStart);
+                        if (!asOfDate) throw new Error('Could not parse period start date');
                         const url = buildPeriodUrl(event.data.personId, asOfDate);
 
                         const resp = await fetch(url, { credentials: 'include', headers });

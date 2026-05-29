@@ -72,8 +72,12 @@
         break;
 
       case 'showPreviousTimecardData':
-        window._previousTimecardEnhancement.showModal(request.prevData, request.currentData);
-        sendResponse({ success: true });
+        if (window._previousTimecardEnhancement?.showModal) {
+          window._previousTimecardEnhancement.showModal(request.prevData, request.currentData);
+          sendResponse({ success: true });
+        } else {
+          sendResponse({ success: false, error: 'Previous timecard enhancement not found' });
+        }
         break;
 
       default:

@@ -30,7 +30,7 @@ class EnhancementManager {
     // Initialize enabled enhancements
     for (const enhancement of this.enhancements.values()) {
       if (enhancement.enabled) {
-        await enhancement.init();
+        await this.runEnhancementTask(enhancement, 'init');
       }
     }
 
@@ -51,8 +51,18 @@ class EnhancementManager {
   async updateAll() {
     for (const enhancement of this.enhancements.values()) {
       if (enhancement.enabled) {
-        await enhancement.update();
+        await this.runEnhancementTask(enhancement, 'update');
       }
+    }
+  }
+
+  async runEnhancementTask(enhancement, method) {
+    if (!enhancement || typeof enhancement[method] !== 'function') return;
+
+    try {
+      await enhancement[method]();
+    } catch (error) {
+      console.error(`Enhancement '${enhancement.name}' failed during ${method}:`, error);
     }
   }
 
@@ -82,7 +92,7 @@ class EnhancementManager {
     
     // Force an update if enabling
     if (enabled) {
-        setTimeout(() => enhancement.update(), 100);
+        setTimeout(() => this.runEnhancementTask(enhancement, 'update'), 100);
     }
   }
 
@@ -101,13 +111,13 @@ class EnhancementManager {
     setTimeout(async () => {
       // If weekend shading was changed, update alternate shading
       if (changedEnhancement === 'weekend-shading' && alternateShading.enabled && alternateShading.forceUpdate) {
-        await alternateShading.forceUpdate();
+        await this.runEnhancementTask(alternateShading, 'forceUpdate');
       }
       
       // If alternate shading was changed and weekend is enabled, update both
       if (changedEnhancement === 'alternate-line-shading' && weekendShading.enabled) {
         if (alternateShading.enabled && alternateShading.forceUpdate) {
-          await alternateShading.forceUpdate();
+          await this.runEnhancementTask(alternateShading, 'forceUpdate');
         }
       }
     }, 150);
@@ -168,10 +178,14 @@ class EnhancementManager {
       this.debounceId = setTimeout(() => this.updateAll(), 250);
     };
 
+    const observerTarget = document.body || document.documentElement;
+    if (!observerTarget) return;
+
     this.mutationObserver = new MutationObserver(debouncedUpdate);
-    this.mutationObserver.observe(document.body, {
+    this.mutationObserver.observe(observerTarget, {
       childList: true,
-      subtree: true
+      subtree: true,
+      characterData: true
     });
   }
 
@@ -187,7 +201,7 @@ class EnhancementManager {
     
     // Cleanup all enhancements
     for (const enhancement of this.enhancements.values()) {
-      enhancement.cleanup();
+      this.runEnhancementTask(enhancement, 'cleanup');
     }
   }
 }

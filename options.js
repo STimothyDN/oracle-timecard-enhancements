@@ -1,4 +1,9 @@
 // Options page script
+const TIMECARD_URL_PATTERN = '*://hcmq.fa.us2.oraclecloud.com/fscmUI/redwood/time/timecards/*';
+const DEFAULT_WEEKEND_SHADE_COLOR = 'rgb(251,249,248)';
+const DEFAULT_RED_LINE_COLOR = 'rgb(214,45,32)';
+const DEFAULT_ALTERNATE_SHADE_COLOR = 'rgb(245,254,255)';
+
 document.addEventListener('DOMContentLoaded', () => {
     loadEnhancementSettings();
 });
@@ -8,9 +13,9 @@ async function loadEnhancementSettings() {
         // Get saved preferences
         const result = await chrome.storage.sync.get(['enhancementPreferences', 'weekendShadeColor', 'redLineColor', 'alternateShadeColor']);
         const preferences = result.enhancementPreferences || {};
-        const weekendColor = result.weekendShadeColor || 'rgb(251,249,248)';
-        const redLineColor = result.redLineColor || 'rgb(214,45,32)'; // Default Oracle red color
-        const alternateLineColor = result.alternateShadeColor || 'rgb(251,249,248)';
+        const weekendColor = result.weekendShadeColor || DEFAULT_WEEKEND_SHADE_COLOR;
+        const redLineColor = result.redLineColor || DEFAULT_RED_LINE_COLOR;
+        const alternateLineColor = result.alternateShadeColor || DEFAULT_ALTERNATE_SHADE_COLOR;
 
         // Define enhancements with their options
         const enhancements = [
@@ -62,7 +67,7 @@ async function loadEnhancementSettings() {
                 label: 'Alternate Line Shade Color',
                 type: 'color',
                 value: alternateLineColor,
-                description: 'Choose the background color for alternate columns'
+                description: 'Choose the background color for alternate rows'
             }
             ]
         }
@@ -181,16 +186,10 @@ async function saveEnhancementPreference(name, enabled) {
         await chrome.storage.sync.set({ enhancementPreferences: preferences });
         
         // Notify active timecard tabs
-        const tabs = await chrome.tabs.query({ 
-        url: ['*://hcmq.fa.us2.oraclecloud.com/fscmUI/redwood/time/timecards/*']
-        });
-        
-        tabs.forEach(tab => {
-        chrome.tabs.sendMessage(tab.id, {
+        await notifyTimecardTabs({
             action: 'toggleEnhancement',
             name: name,
             enabled: enabled
-        });
         });
         
         showSaveStatus('Settings saved successfully', 'success');
@@ -208,15 +207,9 @@ async function saveOptionValue(optionName, value) {
         await chrome.storage.sync.set({ weekendShadeColor: rgbValue });
         
         // Notify active timecard tabs
-        const tabs = await chrome.tabs.query({ 
-            url: ['*://hcmq.fa.us2.oraclecloud.com/fscmUI/redwood/time/timecards/*']
-        });
-        
-        tabs.forEach(tab => {
-            chrome.tabs.sendMessage(tab.id, {
+        await notifyTimecardTabs({
             action: 'updateWeekendColor',
             color: rgbValue
-            });
         });
         } else if (optionName === 'redLineColor') {
         // Convert hex to rgb format
@@ -224,15 +217,9 @@ async function saveOptionValue(optionName, value) {
         await chrome.storage.sync.set({ redLineColor: rgbValue });
         
         // Notify active timecard tabs
-        const tabs = await chrome.tabs.query({ 
-            url: ['*://hcmq.fa.us2.oraclecloud.com/fscmUI/redwood/time/timecards/*']
-        });
-        
-        tabs.forEach(tab => {
-            chrome.tabs.sendMessage(tab.id, {
+        await notifyTimecardTabs({
             action: 'updateRedLineColor',
             color: rgbValue
-            });
         });
         } else if (optionName === 'alternateShadeColor') {
             // Convert hex to rgb format
@@ -240,15 +227,9 @@ async function saveOptionValue(optionName, value) {
             await chrome.storage.sync.set({ alternateShadeColor: rgbValue });
             
             // Notify active timecard tabs
-            const tabs = await chrome.tabs.query({ 
-                url: ['*://hcmq.fa.us2.oraclecloud.com/fscmUI/redwood/time/timecards/*']
-            });
-            
-            tabs.forEach(tab => {
-                chrome.tabs.sendMessage(tab.id, {
+            await notifyTimecardTabs({
                 action: 'updateAlternateRowColor',
                 color: rgbValue
-                });
             });
             }
         
@@ -262,7 +243,7 @@ async function saveOptionValue(optionName, value) {
 async function resetColorToDefault(optionName, colorInput) {
     try {
         if (optionName === 'shadeColor') {
-        const defaultColor = 'rgb(251,249,248)';
+        const defaultColor = DEFAULT_WEEKEND_SHADE_COLOR;
         const defaultHex = rgbToHex(defaultColor);
         
         // Update the color input value
@@ -272,20 +253,14 @@ async function resetColorToDefault(optionName, colorInput) {
         await chrome.storage.sync.set({ weekendShadeColor: defaultColor });
         
         // Notify active timecard tabs
-        const tabs = await chrome.tabs.query({ 
-            url: ['*://hcmq.fa.us2.oraclecloud.com/fscmUI/redwood/time/timecards/*']
-        });
-        
-        tabs.forEach(tab => {
-            chrome.tabs.sendMessage(tab.id, {
+        await notifyTimecardTabs({
             action: 'updateWeekendColor',
             color: defaultColor
-            });
         });
         
         showSaveStatus('Color reset to default', 'success');
         } else if (optionName === 'redLineColor') {
-        const defaultColor = 'rgb(214,45,32)'; // Default Oracle red
+        const defaultColor = DEFAULT_RED_LINE_COLOR;
         const defaultHex = rgbToHex(defaultColor);
         
         // Update the color input value
@@ -295,20 +270,14 @@ async function resetColorToDefault(optionName, colorInput) {
         await chrome.storage.sync.set({ redLineColor: defaultColor });
         
         // Notify active timecard tabs
-        const tabs = await chrome.tabs.query({ 
-            url: ['*://hcmq.fa.us2.oraclecloud.com/fscmUI/redwood/time/timecards/*']
-        });
-        
-        tabs.forEach(tab => {
-            chrome.tabs.sendMessage(tab.id, {
+        await notifyTimecardTabs({
             action: 'updateRedLineColor',
             color: defaultColor
-            });
         });
         
         showSaveStatus('Color reset to default', 'success');
         } else if (optionName === 'alternateShadeColor') {
-            const defaultColor = 'rgb(251,249,248)';
+            const defaultColor = DEFAULT_ALTERNATE_SHADE_COLOR;
             const defaultHex = rgbToHex(defaultColor);
             
             // Update the color input value
@@ -318,15 +287,9 @@ async function resetColorToDefault(optionName, colorInput) {
             await chrome.storage.sync.set({ alternateShadeColor: defaultColor });
             
             // Notify active timecard tabs
-            const tabs = await chrome.tabs.query({ 
-                url: ['*://hcmq.fa.us2.oraclecloud.com/fscmUI/redwood/time/timecards/*']
-            });
-            
-            tabs.forEach(tab => {
-                chrome.tabs.sendMessage(tab.id, {
+            await notifyTimecardTabs({
                 action: 'updateAlternateRowColor',
                 color: defaultColor
-                });
             });
             
             showSaveStatus('Color reset to default', 'success');
@@ -335,6 +298,11 @@ async function resetColorToDefault(optionName, colorInput) {
         console.error('Error resetting color:', error);
         showSaveStatus('Error resetting color', 'error');
     }
+}
+
+async function notifyTimecardTabs(message) {
+    const tabs = await chrome.tabs.query({ url: [TIMECARD_URL_PATTERN] });
+    await Promise.allSettled(tabs.map(tab => chrome.tabs.sendMessage(tab.id, message)));
 }
 
 function showSaveStatus(message, type) {

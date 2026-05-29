@@ -37,13 +37,14 @@ class PreviousTimecardEnhancement extends Enhancement {
     const map = new Map();
     for (const entry of entries) {
       const vals = {};
-      for (const f of entry.timeCardFieldValues.items) {
+      for (const f of entry.timeCardFieldValues?.items || []) {
         vals[f.TimeCardFieldId] = f.DisplayValue;
       }
-      const project = vals[projectId] || 'Unknown';
-      const task = vals[taskId] || 'Unknown';
+      const project = String(vals[projectId] || 'Unknown');
+      const task = String(vals[taskId] || 'Unknown');
       const key = `${project}\0${task}`;
-      map.set(key, (map.get(key) || 0) + parseFloat(entry.Measure || 0));
+      const measure = Number.parseFloat(entry.Measure || 0);
+      map.set(key, (map.get(key) || 0) + (Number.isFinite(measure) ? measure : 0));
     }
     return map;
   }
@@ -62,6 +63,16 @@ class PreviousTimecardEnhancement extends Enhancement {
 
   fmt(n) {
     return (n || 0).toLocaleString('en-US', { maximumFractionDigits: 1 });
+  }
+
+  escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, char => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;'
+    }[char]));
   }
 
   fmtMonthLabel(key) {
@@ -144,8 +155,8 @@ class PreviousTimecardEnhancement extends Enhancement {
     const rowsHtml = rows.length
       ? rows.map((r, i) => `
           <tr class="${i % 2 === 1 ? 'ote-alt' : ''}">
-            <td class="ote-text-col">${r.project}</td>
-            <td class="ote-text-col">${r.task}</td>
+            <td class="ote-text-col">${this.escapeHtml(r.project)}</td>
+            <td class="ote-text-col">${this.escapeHtml(r.task)}</td>
             <td class="ote-num-col">${this.fmt(r.previous)}</td>
             <td class="ote-num-col ote-cur-col">${this.fmt(r.current)}</td>
             <td class="ote-num-col ote-combined">${this.fmt(r.previous + r.current)}</td>
@@ -443,6 +454,7 @@ class PreviousTimecardEnhancement extends Enhancement {
 
     this._12mMsgHandler = (event) => {
       if (event.source !== window) return;
+      if (event.origin !== window.location.origin) return;
       if (event.data?.token !== this._12mSessionToken) return;
       const { type, done, total, periods, message } = event.data || {};
 
@@ -511,8 +523,8 @@ class PreviousTimecardEnhancement extends Enhancement {
             return `<td class="ote-num-col${isCurrent ? ' ote-12m-cur-month' : ''}">${h > 0 ? this.fmt(h) : '—'}</td>`;
           }).join('');
           return `<tr class="${ri % 2 === 1 ? 'ote-alt' : ''}">
-            <td class="ote-text-col ote-sticky-proj">${r.project}</td>
-            <td class="ote-text-col ote-sticky-task">${r.task}</td>
+            <td class="ote-text-col ote-sticky-proj">${this.escapeHtml(r.project)}</td>
+            <td class="ote-text-col ote-sticky-task">${this.escapeHtml(r.task)}</td>
             ${cells}
           </tr>`;
         }).join('')
@@ -526,7 +538,7 @@ class PreviousTimecardEnhancement extends Enhancement {
 
     const warningHtml = errorMsg
       ? `<div style="padding: 8px 22px; background: #fff3cd; color: #856404; font-size: 12px; border-bottom: 1px solid #e5e7eb;">
-           ⚠ Could not load all 12 months — showing ${monthKeys.length} month${monthKeys.length !== 1 ? 's' : ''} retrieved. (${errorMsg})
+           ⚠ Could not load all 12 months — showing ${monthKeys.length} month${monthKeys.length !== 1 ? 's' : ''} retrieved. (${this.escapeHtml(errorMsg)})
          </div>`
       : '';
 
