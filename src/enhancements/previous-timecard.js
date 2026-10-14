@@ -134,12 +134,12 @@ class PreviousTimecardEnhancement extends Enhancement {
 
     const prevStart = prevItem.StartDate?.slice(0, 10) || '';
     const prevStop  = prevItem.StopDate?.slice(0, 10)  || '';
-    const prevRange = prevStart && prevStop ? `${prevStart} – ${prevStop}` : '';
+    const prevRange = this.escapeHtml(prevStart && prevStop ? `${prevStart} – ${prevStop}` : '');
 
     const curItem   = currentData?.items?.[0];
     const curStart  = curItem?.StartDate?.slice(0, 10) || '';
     const curStop   = curItem?.StopDate?.slice(0, 10)  || '';
-    const curRange  = curStart && curStop ? `${curStart} – ${curStop}` : 'Current period';
+    const curRange  = this.escapeHtml(curStart && curStop ? `${curStart} – ${curStop}` : 'Current period');
 
     this._12mPersonId     = curItem?.PersonId  || null;
     this._12mStartDate    = curItem?.StartDate?.slice(0, 10) || null;
@@ -165,6 +165,7 @@ class PreviousTimecardEnhancement extends Enhancement {
 
     const modal = document.createElement('div');
     modal.id = 'ote-prev-modal-root';
+    modal.setAttribute(OTE_UI_ATTRIBUTE, '');
     modal.innerHTML = `
       <div id="ote-prev-overlay"></div>
       <div id="ote-prev-dialog" role="dialog" aria-modal="true">
@@ -403,18 +404,19 @@ class PreviousTimecardEnhancement extends Enhancement {
       }
     `;
 
-    document.head.appendChild(style);
+    (document.head || document.documentElement).appendChild(style);
     document.body.appendChild(modal);
     this.modal = modal;
 
-    document.getElementById('ote-prev-close').addEventListener('click', () => this.closeModal());
-    document.getElementById('ote-prev-overlay').addEventListener('click', () => this.closeModal());
-    const panelPrevCur = document.getElementById('ote-panel-prev-cur');
-    const panelLast12  = document.getElementById('ote-panel-last-12');
-    const dialog       = document.getElementById('ote-prev-dialog');
-    modal.querySelectorAll('.ote-tab').forEach(tab => {
+    modal.querySelector('#ote-prev-close').addEventListener('click', () => this.closeModal());
+    modal.querySelector('#ote-prev-overlay').addEventListener('click', () => this.closeModal());
+    const panelPrevCur = modal.querySelector('#ote-panel-prev-cur');
+    const panelLast12  = modal.querySelector('#ote-panel-last-12');
+    const dialog       = modal.querySelector('#ote-prev-dialog');
+    const tabs         = modal.querySelectorAll('.ote-tab');
+    tabs.forEach(tab => {
       tab.addEventListener('click', () => {
-        modal.querySelectorAll('.ote-tab').forEach(t => t.classList.remove('ote-tab-active'));
+        tabs.forEach(t => t.classList.remove('ote-tab-active'));
         tab.classList.add('ote-tab-active');
         const panel = tab.dataset.tab;
         panelPrevCur.style.display = panel === 'prev-cur' ? '' : 'none';
@@ -443,6 +445,7 @@ class PreviousTimecardEnhancement extends Enhancement {
 
   _onLast12TabActivated() {
     if (this._12mLoaded) return; // already fetched this session
+    if (this._12mMsgHandler) return; // fetch already in progress; keep its progress instead of starting over
     if (!this._12mPersonId || !this._12mStartDate) {
       document.getElementById('ote-panel-last-12').innerHTML =
         '<p style="padding:24px;color:#9aa0a6;text-align:center;">Could not determine person or period — please reload the timecard.</p>';
@@ -566,6 +569,7 @@ class PreviousTimecardEnhancement extends Enhancement {
 
   showError(msg) {
     const toast = document.createElement('div');
+    toast.setAttribute(OTE_UI_ATTRIBUTE, '');
     toast.textContent = msg;
     Object.assign(toast.style, {
       position: 'fixed', bottom: '24px', left: '50%',

@@ -12,7 +12,7 @@ class EnhancementManager {
 
   /**
    * Register an enhancement
-   * @param {Enhancement} enhancement 
+   * @param {Enhancement} enhancement
    */
   registerEnhancement(enhancement) {
     this.enhancements.set(enhancement.name, enhancement);
@@ -37,10 +37,14 @@ class EnhancementManager {
     // Set up mutation observer
     this.setupMutationObserver();
 
-    // Initial update after page load
-    window.addEventListener("load", () => {
-      setTimeout(() => this.updateAll(), 500);
-    });
+    // Initial update after page load. Content scripts run at document_idle, so
+    // the load event may already have fired by the time we get here.
+    const scheduleInitialUpdate = () => setTimeout(() => this.updateAll(), 500);
+    if (document.readyState === 'complete') {
+      scheduleInitialUpdate();
+    } else {
+      window.addEventListener('load', scheduleInitialUpdate, { once: true });
+    }
 
     this.initialized = true;
   }
@@ -84,12 +88,12 @@ class EnhancementManager {
 
     await enhancement.setEnabled(enabled);
     await this.savePreferences();
-    
+
     // Coordinate between related enhancements
     if (name === 'weekend-shading' || name === 'alternate-line-shading') {
-      await this.coordinateShadingEnhancements(name, enabled);
+      this.coordinateShadingEnhancements(name);
     }
-    
+
     // Force an update if enabling
     if (enabled) {
         setTimeout(() => this.runEnhancementTask(enhancement, 'update'), 100);
@@ -99,28 +103,18 @@ class EnhancementManager {
   /**
    * Coordinate between shading enhancements to prevent conflicts
    * @param {string} changedEnhancement - The enhancement that was toggled
-   * @param {boolean} enabled - Whether it was enabled or disabled
    */
-  async coordinateShadingEnhancements(changedEnhancement, enabled) {
+  coordinateShadingEnhancements(changedEnhancement) {
     const weekendShading = this.enhancements.get('weekend-shading');
     const alternateShading = this.enhancements.get('alternate-line-shading');
-    
+
     if (!weekendShading || !alternateShading) return;
-    
-    // Small delay to ensure DOM is in correct state
-    setTimeout(async () => {
-      // If weekend shading was changed, update alternate shading
-      if (changedEnhancement === 'weekend-shading' && alternateShading.enabled && alternateShading.forceUpdate) {
-        await this.runEnhancementTask(alternateShading, 'forceUpdate');
-      }
-      
-      // If alternate shading was changed and weekend is enabled, update both
-      if (changedEnhancement === 'alternate-line-shading' && weekendShading.enabled) {
-        if (alternateShading.enabled && alternateShading.forceUpdate) {
-          await this.runEnhancementTask(alternateShading, 'forceUpdate');
-        }
-      }
-    }, 150);
+
+    // Re-shade alternate rows once the DOM settles. Requests are coalesced, and the
+    // refresh is skipped if alternate shading is disabled by the time it runs.
+    if (changedEnhancement === 'weekend-shading' || weekendShading.enabled) {
+      alternateShading.scheduleRefresh?.(150);
+    }
   }
 
   /**
@@ -139,20 +133,15 @@ class EnhancementManager {
    * Load user preferences from storage
    */
   async loadPreferences() {
-    return new Promise((resolve) => {
-      chrome.storage.sync.get(['enhancementPreferences'], (result) => {
-        const preferences = result.enhancementPreferences || {};
-        
-        // Apply saved preferences
-        for (const [name, enhancement] of this.enhancements) {
-          if (preferences[name] !== undefined) {
-            enhancement.enabled = preferences[name];
-          }
-        }
-        
-        resolve();
-      });
-    });
+    const result = await readSyncStorage(['enhancementPreferences']);
+    const preferences = result.enhancementPreferences || {};
+
+    // Apply saved preferences
+    for (const [name, enhancement] of this.enhancements) {
+      if (preferences[name] !== undefined) {
+        enhancement.enabled = preferences[name];
+      }
+    }
   }
 
   /**
@@ -164,24 +153,23 @@ class EnhancementManager {
       preferences[name] = enhancement.enabled;
     }
 
-    return new Promise((resolve) => {
-      chrome.storage.sync.set({ enhancementPreferences: preferences }, resolve);
-    });
+    await writeSyncStorage({ enhancementPreferences: preferences });
   }
 
   /**
    * Set up debounced mutation observer
    */
   setupMutationObserver() {
-    const debouncedUpdate = () => {
-      clearTimeout(this.debounceId);
-      this.debounceId = setTimeout(() => this.updateAll(), 250);
-    };
-
     const observerTarget = document.body || document.documentElement;
     if (!observerTarget) return;
 
-    this.mutationObserver = new MutationObserver(debouncedUpdate);
+    this.mutationObserver = new MutationObserver((records) => {
+      // Ignore batches caused only by our own UI (e.g. modal progress updates)
+      if (records.every(record => this.isOwnUiMutation(record))) return;
+
+      clearTimeout(this.debounceId);
+      this.debounceId = setTimeout(() => this.updateAll(), 250);
+    });
     this.mutationObserver.observe(observerTarget, {
       childList: true,
       subtree: true,
@@ -190,15 +178,32 @@ class EnhancementManager {
   }
 
   /**
+   * Whether a mutation happened inside, or only added/removed, extension-owned UI
+   * @param {MutationRecord} record
+   */
+  isOwnUiMutation(record) {
+    const selector = `[${OTE_UI_ATTRIBUTE}]`;
+    const target = record.target.nodeType === Node.ELEMENT_NODE ? record.target : record.target.parentElement;
+    if (target?.closest(selector)) return true;
+    if (record.type !== 'childList') return false;
+
+    const changedNodes = [...record.addedNodes, ...record.removedNodes];
+    return changedNodes.length > 0 && changedNodes.every(node =>
+      node.nodeType === Node.ELEMENT_NODE && node.matches(selector)
+    );
+  }
+
+  /**
    * Cleanup resources
    */
   cleanup() {
     if (this.mutationObserver) {
       this.mutationObserver.disconnect();
+      this.mutationObserver = null;
     }
-    
+
     clearTimeout(this.debounceId);
-    
+
     // Cleanup all enhancements
     for (const enhancement of this.enhancements.values()) {
       this.runEnhancementTask(enhancement, 'cleanup');

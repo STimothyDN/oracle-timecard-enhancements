@@ -63,7 +63,7 @@ class TimecardTotalsEnhancement extends Enhancement {
       );
 
       // Copy the JET classes from one of the cells in the bottom row
-      if (sampleCell) {
+      if (sampleCell && corner.className !== sampleCell.className) {
         corner.className = sampleCell.className;
       }
 

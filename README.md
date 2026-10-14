@@ -135,5 +135,6 @@ manager.registerEnhancement(new MyNewEnhancement());
 
 ### Previous Timecard Summary
 - Uses Oracle timecard API requests already available on the page
+- Starts from the timecard request Oracle made most recently. A small script that runs as the page loads (`src/page-request-log.js`) records these requests, so this keeps working in long sessions after the browser's resource timing buffer is full
 - Fetches previous-period and historical data in the page context so Oracle authentication is preserved
 - Historical data is loaded only when the Last 12 Months tab is opened

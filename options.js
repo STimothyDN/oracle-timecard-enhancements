@@ -4,6 +4,29 @@ const DEFAULT_WEEKEND_SHADE_COLOR = 'rgb(251,249,248)';
 const DEFAULT_RED_LINE_COLOR = 'rgb(214,45,32)';
 const DEFAULT_ALTERNATE_SHADE_COLOR = 'rgb(245,254,255)';
 
+// How each color option is stored and pushed to open timecard tabs
+const COLOR_OPTIONS = {
+    shadeColor: {
+        storageKey: 'weekendShadeColor',
+        action: 'updateWeekendColor',
+        defaultColor: DEFAULT_WEEKEND_SHADE_COLOR
+    },
+    redLineColor: {
+        storageKey: 'redLineColor',
+        action: 'updateRedLineColor',
+        defaultColor: DEFAULT_RED_LINE_COLOR
+    },
+    alternateShadeColor: {
+        storageKey: 'alternateShadeColor',
+        action: 'updateAlternateRowColor',
+        defaultColor: DEFAULT_ALTERNATE_SHADE_COLOR
+    }
+};
+
+// Preference writes are read-modify-write, so run them one at a time
+let preferenceWriteQueue = Promise.resolve();
+let saveStatusTimer = null;
+
 document.addEventListener('DOMContentLoaded', () => {
     loadEnhancementSettings();
 });
@@ -82,12 +105,12 @@ async function loadEnhancementSettings() {
 
 function renderEnhancements(enhancements) {
     const container = document.getElementById('enhancements-list');
-    container.innerHTML = '';
+    const fragment = document.createDocumentFragment();
 
     enhancements.forEach(enhancement => {
-        const card = createEnhancementCard(enhancement);
-        container.appendChild(card);
+        fragment.appendChild(createEnhancementCard(enhancement));
     });
+    container.replaceChildren(fragment);
 }
 
 function createEnhancementCard(enhancement) {
@@ -111,18 +134,18 @@ function createEnhancementCard(enhancement) {
 
     // Add toggle event listener
     const toggle = card.querySelector('.toggle-switch');
+    const optionsDiv = card.querySelector('.enhancement-options');
     toggle.addEventListener('click', () => {
         const newEnabled = !enhancement.enabled;
         enhancement.enabled = newEnabled;
-        
+
         toggle.classList.toggle('enabled', newEnabled);
-        
+
         // Show/hide options
-        const optionsDiv = card.querySelector('.enhancement-options');
         if (optionsDiv) {
         optionsDiv.classList.toggle('visible', newEnabled);
         }
-        
+
         saveEnhancementPreference(enhancement.name, newEnabled);
     });
 
@@ -134,7 +157,7 @@ function createEnhancementCard(enhancement) {
             saveOptionValue(option.name, input.value);
         });
         }
-        
+
         // Add reset button event listener for color options
         if (option.type === 'color') {
         const resetBtn = card.querySelector(`.reset-color-btn[data-option="${option.name}"]`);
@@ -151,7 +174,7 @@ function createEnhancementCard(enhancement) {
 
 function createOptionHTML(option) {
     switch (option.type) {
-        case 'color':
+        case 'color': {
         // Convert rgb string to hex for color input
         const hexValue = rgbToHex(option.value);
         return `
@@ -164,6 +187,7 @@ function createOptionHTML(option) {
             <p style="font-size: 12px; color: #666; margin: 4px 0 0 0;">${option.description}</p>
             </div>
         `;
+        }
         case 'text':
         return `
             <div class="option-group">
@@ -177,21 +201,26 @@ function createOptionHTML(option) {
     }
 }
 
-async function saveEnhancementPreference(name, enabled) {
+function saveEnhancementPreference(name, enabled) {
+    preferenceWriteQueue = preferenceWriteQueue.then(() => writeEnhancementPreference(name, enabled));
+    return preferenceWriteQueue;
+}
+
+async function writeEnhancementPreference(name, enabled) {
     try {
         const result = await chrome.storage.sync.get(['enhancementPreferences']);
         const preferences = result.enhancementPreferences || {};
         preferences[name] = enabled;
-        
+
         await chrome.storage.sync.set({ enhancementPreferences: preferences });
-        
+
         // Notify active timecard tabs
         await notifyTimecardTabs({
             action: 'toggleEnhancement',
             name: name,
             enabled: enabled
         });
-        
+
         showSaveStatus('Settings saved successfully', 'success');
     } catch (error) {
         console.error('Error saving preference:', error);
@@ -199,40 +228,27 @@ async function saveEnhancementPreference(name, enabled) {
     }
 }
 
+async function saveColor(optionName, rgbValue) {
+    const config = COLOR_OPTIONS[optionName];
+    if (!config) return false;
+
+    await chrome.storage.sync.set({ [config.storageKey]: rgbValue });
+
+    // Notify active timecard tabs
+    await notifyTimecardTabs({
+        action: config.action,
+        color: rgbValue
+    });
+    return true;
+}
+
 async function saveOptionValue(optionName, value) {
     try {
-        if (optionName === 'shadeColor') {
-        // Convert hex to rgb format
-        const rgbValue = hexToRgb(value);
-        await chrome.storage.sync.set({ weekendShadeColor: rgbValue });
-        
-        // Notify active timecard tabs
-        await notifyTimecardTabs({
-            action: 'updateWeekendColor',
-            color: rgbValue
-        });
-        } else if (optionName === 'redLineColor') {
-        // Convert hex to rgb format
-        const rgbValue = hexToRgb(value);
-        await chrome.storage.sync.set({ redLineColor: rgbValue });
-        
-        // Notify active timecard tabs
-        await notifyTimecardTabs({
-            action: 'updateRedLineColor',
-            color: rgbValue
-        });
-        } else if (optionName === 'alternateShadeColor') {
+        if (COLOR_OPTIONS[optionName]) {
             // Convert hex to rgb format
-            const rgbValue = hexToRgb(value);
-            await chrome.storage.sync.set({ alternateShadeColor: rgbValue });
-            
-            // Notify active timecard tabs
-            await notifyTimecardTabs({
-                action: 'updateAlternateRowColor',
-                color: rgbValue
-            });
-            }
-        
+            await saveColor(optionName, hexToRgb(value));
+        }
+
         showSaveStatus('Settings saved successfully', 'success');
     } catch (error) {
         console.error('Error saving option:', error);
@@ -242,58 +258,18 @@ async function saveOptionValue(optionName, value) {
 
 async function resetColorToDefault(optionName, colorInput) {
     try {
-        if (optionName === 'shadeColor') {
-        const defaultColor = DEFAULT_WEEKEND_SHADE_COLOR;
-        const defaultHex = rgbToHex(defaultColor);
-        
+        const config = COLOR_OPTIONS[optionName];
+        if (!config) return;
+
         // Update the color input value
-        colorInput.value = defaultHex;
-        
-        // Save the default value
-        await chrome.storage.sync.set({ weekendShadeColor: defaultColor });
-        
-        // Notify active timecard tabs
-        await notifyTimecardTabs({
-            action: 'updateWeekendColor',
-            color: defaultColor
-        });
-        
-        showSaveStatus('Color reset to default', 'success');
-        } else if (optionName === 'redLineColor') {
-        const defaultColor = DEFAULT_RED_LINE_COLOR;
-        const defaultHex = rgbToHex(defaultColor);
-        
-        // Update the color input value
-        colorInput.value = defaultHex;
-        
-        // Save the default value
-        await chrome.storage.sync.set({ redLineColor: defaultColor });
-        
-        // Notify active timecard tabs
-        await notifyTimecardTabs({
-            action: 'updateRedLineColor',
-            color: defaultColor
-        });
-        
-        showSaveStatus('Color reset to default', 'success');
-        } else if (optionName === 'alternateShadeColor') {
-            const defaultColor = DEFAULT_ALTERNATE_SHADE_COLOR;
-            const defaultHex = rgbToHex(defaultColor);
-            
-            // Update the color input value
-            colorInput.value = defaultHex;
-            
-            // Save the default value
-            await chrome.storage.sync.set({ alternateShadeColor: defaultColor });
-            
-            // Notify active timecard tabs
-            await notifyTimecardTabs({
-                action: 'updateAlternateRowColor',
-                color: defaultColor
-            });
-            
-            showSaveStatus('Color reset to default', 'success');
+        if (colorInput) {
+            colorInput.value = rgbToHex(config.defaultColor);
         }
+
+        // Save the default value
+        await saveColor(optionName, config.defaultColor);
+
+        showSaveStatus('Color reset to default', 'success');
     } catch (error) {
         console.error('Error resetting color:', error);
         showSaveStatus('Error resetting color', 'error');
@@ -310,22 +286,25 @@ function showSaveStatus(message, type) {
     statusEl.textContent = message;
     statusEl.className = `save-status ${type}`;
     statusEl.style.display = 'block';
-    
-    setTimeout(() => {
+
+    // Restart the hide timer so a newer message isn't hidden early by an older one
+    clearTimeout(saveStatusTimer);
+    saveStatusTimer = setTimeout(() => {
         statusEl.style.display = 'none';
     }, 3000);
 }
 
 // Utility functions for color conversion
 function rgbToHex(rgb) {
-    if (rgb.startsWith('#')) return rgb;
-    
-    const match = rgb.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+    const value = String(rgb ?? '');
+    if (value.startsWith('#')) return value;
+
+    const match = value.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
     if (!match) return '#fbf9f8'; // Default color
-    
+
     const [, r, g, b] = match;
     return '#' + [r, g, b].map(x => {
-        const hex = parseInt(x).toString(16);
+        const hex = parseInt(x, 10).toString(16);
         return hex.length === 1 ? '0' + hex : hex;
     }).join('');
 }

@@ -16,7 +16,7 @@ class WeekendShadingEnhancement extends Enhancement {
   async onInit() {
     // Load saved color preference
     await this.loadColorPreference();
-    
+
     // Initial shading
     this.shadeWeekends();
   }
@@ -24,13 +24,12 @@ class WeekendShadingEnhancement extends Enhancement {
   async onCleanup() {
     // Remove weekend shading
     this.removeWeekendShading();
-    
+
     // Notify alternate shading to update
     this.notifyAlternateShading();
   }
 
   async onUpdate() {
-    this.removeWeekendShading();
     this.shadeWeekends();
   }
 
@@ -39,7 +38,6 @@ class WeekendShadingEnhancement extends Enhancement {
    */
   async forceUpdate() {
     if (this.enabled && this.initialized) {
-      this.removeWeekendShading();
       this.shadeWeekends();
     }
   }
@@ -50,8 +48,8 @@ class WeekendShadingEnhancement extends Enhancement {
   notifyAlternateShading() {
     if (typeof window !== 'undefined' && window.enhancementManager) {
       const alternateShading = window.enhancementManager.enhancements.get('alternate-line-shading');
-      if (alternateShading && alternateShading.enabled && alternateShading.forceUpdate) {
-        setTimeout(() => alternateShading.forceUpdate(), 50);
+      if (alternateShading && alternateShading.enabled && alternateShading.scheduleRefresh) {
+        alternateShading.scheduleRefresh(50);
       }
     }
   }
@@ -69,23 +67,47 @@ class WeekendShadingEnhancement extends Enhancement {
     return offsets;
   }
 
+  /**
+   * Shade cells in weekend columns and restore any that are no longer in one.
+   * Only cells whose state actually changes are touched, so repeated passes over
+   * an unchanged grid don't rewrite every cell.
+   */
   shadeWeekends() {
     const offsets = this.findWeekendOffsets();
-    const gridCells = document.querySelectorAll(
-      '.oj-datagrid-cell,.oj-datagrid-column-header-cell,.oj-datagrid-column-end-header-cell'
-    );
-    
-    gridCells.forEach((cell) => {
-      if (offsets.has(cell.style.left)) {
-        // Store original color if not already stored by any enhancement
-        if (!this.originalColors.has(cell) && !cell.dataset.weekendShaded && !cell.dataset.alternateRowsShaded) {
-          this.originalColors.set(cell, cell.style.backgroundColor || '');
-        }
-        cell.style.backgroundColor = this.shadeColor;
-        cell.dataset.weekendShaded = 'true';
-      }
+    const targetCells = [];
+    if (offsets.size) {
+      const gridCells = document.querySelectorAll(
+        '.oj-datagrid-cell,.oj-datagrid-column-header-cell,.oj-datagrid-column-end-header-cell'
+      );
+      gridCells.forEach((cell) => {
+        if (offsets.has(cell.style.left)) targetCells.push(cell);
+      });
+    }
+    const targets = new Set(targetCells);
+
+    // Restore cells that are shaded but no longer in a weekend column
+    document.querySelectorAll('[data-weekend-shaded="true"]').forEach((cell) => {
+      if (targets.has(cell)) return;
+      this.restoreBackgroundColor(cell, this.originalColors.get(cell));
+      cell.removeAttribute('data-weekend-shaded');
     });
-    
+
+    const originalColors = new Map();
+    targetCells.forEach((cell) => {
+      const alreadyShaded = cell.dataset.weekendShaded === 'true';
+
+      // Remember the pre-shading color, unless alternate shading already owns it
+      if (!cell.dataset.alternateRowsShaded) {
+        originalColors.set(cell, alreadyShaded
+          ? (this.originalColors.get(cell) ?? '')
+          : (cell.style.backgroundColor || ''));
+      }
+
+      cell.style.backgroundColor = this.shadeColor;
+      if (!alreadyShaded) cell.dataset.weekendShaded = 'true';
+    });
+    this.originalColors = originalColors;
+
     // Notify alternate shading to update after weekend shading is applied
     this.notifyAlternateShading();
   }
@@ -93,18 +115,8 @@ class WeekendShadingEnhancement extends Enhancement {
   removeWeekendShading() {
     const shadedCells = document.querySelectorAll('[data-weekend-shaded="true"]');
     shadedCells.forEach((cell) => {
-        // Restore original color
-        const originalColor = this.originalColors.get(cell);
-        if (originalColor !== undefined) {
-          if (originalColor === '') {
-            cell.style.removeProperty('background-color');
-          } else {
-            cell.style.backgroundColor = originalColor;
-          }
-        } else {
-          // If no original color stored, remove the style
-          cell.style.removeProperty('background-color');
-        }
+        // Restore original color (or remove the style if none was stored)
+        this.restoreBackgroundColor(cell, this.originalColors.get(cell));
         cell.removeAttribute('data-weekend-shaded');
     });
     this.originalColors.clear();
@@ -117,7 +129,6 @@ class WeekendShadingEnhancement extends Enhancement {
   setShadeColor(color) {
     this.shadeColor = color;
     if (this.enabled && this.initialized) {
-      this.removeWeekendShading();
       this.shadeWeekends();
     }
   }
@@ -126,13 +137,9 @@ class WeekendShadingEnhancement extends Enhancement {
    * Load saved color preference and apply it
    */
   async loadColorPreference() {
-    return new Promise((resolve) => {
-      chrome.storage.sync.get(['weekendShadeColor'], (result) => {
-        if (result.weekendShadeColor) {
-          this.shadeColor = result.weekendShadeColor;
-        }
-        resolve();
-      });
-    });
+    const result = await readSyncStorage(['weekendShadeColor']);
+    if (result.weekendShadeColor) {
+      this.shadeColor = result.weekendShadeColor;
+    }
   }
 }

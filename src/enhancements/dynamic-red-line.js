@@ -3,13 +3,17 @@
  * Shows a single red line before the current date column instead of static weekly red lines
  */
 class DynamicRedLineEnhancement extends Enhancement {
+  static WEEK_BORDER_CLASS = 'oj-fa-time-hcm-dg-weekstart-border';
+  static DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  static MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
   constructor() {
     super(
       'dynamic-red-line',
       'Display a single red line before the current date column instead of static weekly lines',
       true
     );
-    this.processedCells = new Set(); // Track cells we've modified
     this.redLineColor = 'rgb(214,45,32)'; // Default Oracle red color
     this.styleElement = null; // For injecting custom CSS
   }
@@ -17,10 +21,10 @@ class DynamicRedLineEnhancement extends Enhancement {
   async onInit() {
     // Load saved color preference
     await this.loadColorPreference();
-    
+
     // Inject custom CSS for color override
     this.injectCustomCSS();
-    
+
     // Apply the dynamic red line
     this.applyDynamicRedLine();
   }
@@ -39,32 +43,11 @@ class DynamicRedLineEnhancement extends Enhancement {
    */
   getTodayDateString() {
     const today = new Date();
-    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
-                       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    
-    const dayName = dayNames[today.getDay()];
-    const monthName = monthNames[today.getMonth()];
+    const dayName = DynamicRedLineEnhancement.DAY_NAMES[today.getDay()];
+    const monthName = DynamicRedLineEnhancement.MONTH_NAMES[today.getMonth()];
     const date = today.getDate().toString().padStart(2, '0'); // Add leading zero for single digits
-    
-    return `${dayName},${monthName} ${date}`;
-  }
 
-  /**
-   * Find the column header that matches today's date
-   * @returns {Element|null} The header cell element for today's date
-   */
-  findTodayColumn() {
-    const todayString = this.getTodayDateString();
-    const headerCells = document.querySelectorAll('.oj-datagrid-column-header-cell');
-    
-    for (const cell of headerCells) {
-      if (cell.textContent.trim().includes(todayString)) {
-        return cell;
-      }
-    }
-    
-    return null;
+    return `${dayName},${monthName} ${date}`;
   }
 
   /**
@@ -72,29 +55,28 @@ class DynamicRedLineEnhancement extends Enhancement {
    * @returns {Element|null} The header cell element for the day before today
    */
   findColumnBeforeToday() {
-    const todayColumn = this.findTodayColumn();
-    if (!todayColumn) return null;
+    const todayString = this.getTodayDateString();
+    const headers = Array.from(
+      document.querySelectorAll('.oj-datagrid-column-header-cell'),
+      cell => ({ cell, text: cell.textContent.trim(), left: Number.parseInt(cell.style.left, 10) })
+    );
 
-    const todayLeftOffset = Number.parseInt(todayColumn.style.left, 10);
-    if (Number.isNaN(todayLeftOffset)) return null;
+    // Find the column header that matches today's date
+    const todayHeader = headers.find(header => header.text.includes(todayString));
+    if (!todayHeader || Number.isNaN(todayHeader.left)) return null;
 
-    // Find only date column headers (those that contain day names and dates)
-    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const headerCells = Array.from(document.querySelectorAll('.oj-datagrid-column-header-cell'))
-      .filter(cell => {
-        // Only include cells that have a left position and contain date information
-        if (!cell.style.left || Number.isNaN(Number.parseInt(cell.style.left, 10))) return false;
-        
-        const cellText = cell.textContent.trim();
-        // Check if the cell contains a day name (indicating it's a date column)
-        return dayNames.some(day => cellText.includes(day));
-      })
-      .sort((a, b) => Number.parseInt(a.style.left, 10) - Number.parseInt(b.style.left, 10));
+    // Only date column headers (those with a position and a day name), left to right
+    const dateHeaders = headers
+      .filter(header =>
+        !Number.isNaN(header.left) &&
+        DynamicRedLineEnhancement.DAY_NAMES.some(day => header.text.includes(day))
+      )
+      .sort((a, b) => a.left - b.left);
 
     // Find the column immediately before today's column
-    for (let i = 0; i < headerCells.length; i++) {
-      if (Number.parseInt(headerCells[i].style.left, 10) === todayLeftOffset && i > 0) {
-        return headerCells[i - 1];
+    for (let i = 1; i < dateHeaders.length; i++) {
+      if (dateHeaders[i].left === todayHeader.left) {
+        return dateHeaders[i - 1].cell;
       }
     }
 
@@ -104,7 +86,7 @@ class DynamicRedLineEnhancement extends Enhancement {
   /**
    * Get all cells in a specific column position (based on left offset)
    * @param {string} leftOffset - The CSS left offset value
-   * @returns {NodeList} All cells at that column position
+   * @returns {Element[]} All cells at that column position
    */
   getCellsAtColumn(leftOffset) {
     const cells = document.querySelectorAll(
@@ -117,87 +99,73 @@ class DynamicRedLineEnhancement extends Enhancement {
    * Remove all existing Oracle week-start border classes
    */
   removeExistingRedLines() {
-    const cellsWithWeekBorder = document.querySelectorAll('.oj-fa-time-hcm-dg-weekstart-border');
+    const cellsWithWeekBorder = document.querySelectorAll(`.${DynamicRedLineEnhancement.WEEK_BORDER_CLASS}`);
     cellsWithWeekBorder.forEach(cell => {
       if (!cell.dataset.dynamicRedLineActive) {
-        cell.classList.remove('oj-fa-time-hcm-dg-weekstart-border');
-        this.processedCells.add(cell);
+        cell.classList.remove(DynamicRedLineEnhancement.WEEK_BORDER_CLASS);
         cell.dataset.dynamicRedLineRemoved = 'true';
       }
     });
   }
 
   /**
-   * Apply the dynamic red line before today's column
+   * Apply the dynamic red line before today's column. Cells that already carry
+   * the line are left alone, so repeated passes don't churn classes.
    */
   applyDynamicRedLine() {
     try {
-      // Clear any previous state first (in case of multiple updates)
-      this.clearPreviousState();
-      
+      const borderClass = DynamicRedLineEnhancement.WEEK_BORDER_CLASS;
+
+      // Cells in the column before today (none if today isn't on this timecard)
+      const columnBeforeToday = this.findColumnBeforeToday();
+      const columnLeftOffset = columnBeforeToday?.style.left;
+      const lineCells = new Set(columnLeftOffset ? this.getCellsAtColumn(columnLeftOffset) : []);
+
+      // Clear our line from cells that are no longer in that column
+      document.querySelectorAll('[data-dynamic-red-line-active="true"]').forEach(cell => {
+        if (lineCells.has(cell)) return;
+        cell.classList.remove(borderClass);
+        cell.removeAttribute('data-dynamic-red-line-active');
+      });
+
       // Remove all existing Oracle week-start borders
       this.removeExistingRedLines();
-      
-      // Find the column before today
-      const columnBeforeToday = this.findColumnBeforeToday();
-      if (!columnBeforeToday) {
-        return;
-      }
-      
-      const columnLeftOffset = columnBeforeToday.style.left;
-      if (!columnLeftOffset) {
-        return;
-      }
-      
+
       // Apply the Oracle week-start border class to all cells in the column before today
-      const columnCells = this.getCellsAtColumn(columnLeftOffset);
-      columnCells.forEach(cell => {
-        cell.classList.add('oj-fa-time-hcm-dg-weekstart-border');
-        this.processedCells.add(cell);
-        cell.dataset.dynamicRedLineActive = 'true';
+      lineCells.forEach(cell => {
+        if (!cell.classList.contains(borderClass)) {
+          cell.classList.add(borderClass);
+        }
+        if (cell.dataset.dynamicRedLineActive !== 'true') {
+          cell.dataset.dynamicRedLineActive = 'true';
+        }
       });
-      
+
     } catch (error) {
       console.error('Dynamic Red Line error:', error);
     }
   }
 
   /**
-   * Clear any previous state from this enhancement
-   */
-  clearPreviousState() {
-    // Remove any lingering active red lines from previous runs
-    const previousActiveCells = document.querySelectorAll('[data-dynamic-red-line-active="true"]');
-    previousActiveCells.forEach(cell => {
-      cell.classList.remove('oj-fa-time-hcm-dg-weekstart-border');
-      cell.removeAttribute('data-dynamic-red-line-active');
-      this.processedCells.delete(cell);
-    });
-  }
-
-  /**
    * Remove the dynamic red line and restore original state
    */
   removeDynamicRedLine() {
+    const borderClass = DynamicRedLineEnhancement.WEEK_BORDER_CLASS;
+
     // Remove our added red lines
     const activeCells = document.querySelectorAll('[data-dynamic-red-line-active="true"]');
     activeCells.forEach(cell => {
-      cell.classList.remove('oj-fa-time-hcm-dg-weekstart-border');
+      cell.classList.remove(borderClass);
       cell.removeAttribute('data-dynamic-red-line-active');
-      this.processedCells.delete(cell); // Remove from tracking
     });
 
     // Restore the original Oracle week-start borders that we removed
     const removedCells = document.querySelectorAll('[data-dynamic-red-line-removed="true"]');
     removedCells.forEach(cell => {
-      cell.classList.add('oj-fa-time-hcm-dg-weekstart-border');
+      cell.classList.add(borderClass);
       cell.removeAttribute('data-dynamic-red-line-removed');
-      this.processedCells.delete(cell); // Remove from tracking
     });
 
-    // Clear our tracking set completely
-    this.processedCells.clear();
-    
     // Remove custom CSS if it exists
     this.removeCustomCSS();
   }
@@ -208,12 +176,12 @@ class DynamicRedLineEnhancement extends Enhancement {
    * @returns {object} Object with r, g, b properties
    */
   parseRgbColor(rgbString) {
-    const match = rgbString.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+    const match = String(rgbString).match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
     if (match) {
       return {
-        r: parseInt(match[1]),
-        g: parseInt(match[2]),
-        b: parseInt(match[3])
+        r: parseInt(match[1], 10),
+        g: parseInt(match[2], 10),
+        b: parseInt(match[3], 10)
       };
     }
     // Default to Oracle red if parsing fails
@@ -226,9 +194,9 @@ class DynamicRedLineEnhancement extends Enhancement {
   injectCustomCSS() {
     // Remove existing style element if it exists
     this.removeCustomCSS();
-    
+
     const { r, g, b } = this.parseRgbColor(this.redLineColor);
-    
+
     // Create a new style element
     this.styleElement = document.createElement('style');
     this.styleElement.id = 'dynamic-red-line-style';
@@ -237,17 +205,17 @@ class DynamicRedLineEnhancement extends Enhancement {
         --oj-palette-danger-rgb-100: ${r}, ${g}, ${b};
       }
     `;
-    
+
     // Append to head
-    document.head.appendChild(this.styleElement);
+    (document.head || document.documentElement).appendChild(this.styleElement);
   }
 
   /**
    * Remove custom CSS
    */
   removeCustomCSS() {
-    if (this.styleElement && this.styleElement.parentNode) {
-      this.styleElement.parentNode.removeChild(this.styleElement);
+    if (this.styleElement) {
+      this.styleElement.remove();
       this.styleElement = null;
     }
   }
@@ -267,13 +235,9 @@ class DynamicRedLineEnhancement extends Enhancement {
    * Load saved color preference and apply it
    */
   async loadColorPreference() {
-    return new Promise((resolve) => {
-      chrome.storage.sync.get(['redLineColor'], (result) => {
-        if (result.redLineColor) {
-          this.redLineColor = result.redLineColor;
-        }
-        resolve();
-      });
-    });
+    const result = await readSyncStorage(['redLineColor']);
+    if (result.redLineColor) {
+      this.redLineColor = result.redLineColor;
+    }
   }
 }

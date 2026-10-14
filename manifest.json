@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Oracle Timecard Enhancements",
-  "version": "2.7",
+  "version": "2.8",
   "description": "Enhances Oracle timecards with modular, configurable features.",
   "permissions": [
     "activeTab",
@@ -34,6 +34,16 @@
         "src/content-main.js"
       ],
       "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "*://hcmq.fa.us2.oraclecloud.com/fscmUI/redwood/time/timecards/*"
+      ],
+      "js": [
+        "src/page-request-log.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN"
     }
   ],
   "browser_specific_settings": {
